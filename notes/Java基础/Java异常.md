@@ -39,4 +39,4 @@ getMessage（）返回的结果相同
 
 ## 参考
 
-- [https://github.com/Snailclimb/JavaGuide/blob/master/docs/java/Java%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86.md#32-%E5%BC%82%E5%B8%B8](https://github.com/Snailclimb/JavaGuide/blob/master/docs/java/Java%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86.md#32-%E5%BC%82%E5%B8%B8)
+- [JavaGuide](https://github.com/Snailclimb/JavaGuide/blob/master/docs/java/Java%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86.md#32-%E5%BC%82%E5%B8%B8)
