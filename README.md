@@ -3,7 +3,7 @@
 
 # Java
 
-  - [Java异常]() ——> 代办
+  - [Java异常](http://github.com/coderbruis/Java-Accumulation/blob/master/notes/Java%E5%9F%BA%E7%A1%80/Java%E5%BC%82%E5%B8%B8.md) ——> 代办
   - [Java反射]() ——> 代办
   - [Java枚举]() ——> 代办
   - [Java内部类]() ——> 代办  
