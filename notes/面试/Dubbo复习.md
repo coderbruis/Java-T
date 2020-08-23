@@ -88,6 +88,278 @@ Dubbo中很多地方通过getExtension (Class<T> type. String name)来获取扩�
 据不同条件被激活的场景中，如Filter需要多个同时激活，因为每个Filter实现的是不同的功能。
 ©Activate可传入的参数很多。
 
+### ExtensionLoader工作原理
+
+ExtensionLoader是整个扩展机制的主要逻辑类，在这个类里面卖现了配置的加载、扩展类
+缓存、自适应对象生成等所有工作。
+
+ExtensionLoader 的逻辑入口可以分为 getExtension、getAdaptiveExtension、
+getActivateExtension三个，分别是获取普通扩展类、获取自适应扩展类、获取自动激活的扩
+展类。总体逻辑都是从调用这三个方法开始的，每个方法可能会有不同的重载的方法，根据不
+同的传入参数进行调整。
+
+三个入口中,getActivateExtension对getExtension 的依赖比较getAdaptiveExtension
+则相对独立。
+
+## Dubbo启停原理解析
+
+- Dubbo配置解析原理
+- Dubbo服务暴露原理
+- Dubbo服务消费原理
+- Dubbo优雅停机解析
+
+### Dubbo配置解析
+
+目前Dubbo框架提供了3中配置方式：XML配置、注解、属性文件（properties和yml）。
+
+对于Dubbo的配置，不管是注解还是XML配置、properties配置都是需要对象来承载配置内容的。
+
+> 基于XML配置原理解析
+
+对于XML配置原理解析，在之前学习Spring源码时，就已经有来了解到，一般都是通过XXNamespaceHandler来进行处理的，而在Dubbo中是通过DubboNamespaceHandler来完成。
+
+```
+public class DubboNamespaceHandler extends NamespaceHandlerSupport implements ConfigurableSourceBeanMetadataElement {
+
+    static {
+        Version.checkDuplicate(DubboNamespaceHandler.class);
+    }
+
+    @Override
+    public void init() {
+        registerBeanDefinitionParser("application", new DubboBeanDefinitionParser(ApplicationConfig.class, true));
+        registerBeanDefinitionParser("module", new DubboBeanDefinitionParser(ModuleConfig.class, true));
+        registerBeanDefinitionParser("registry", new DubboBeanDefinitionParser(RegistryConfig.class, true));
+        registerBeanDefinitionParser("config-center", new DubboBeanDefinitionParser(ConfigCenterBean.class, true));
+        registerBeanDefinitionParser("metadata-report", new DubboBeanDefinitionParser(MetadataReportConfig.class, true));
+        registerBeanDefinitionParser("monitor", new DubboBeanDefinitionParser(MonitorConfig.class, true));
+        registerBeanDefinitionParser("metrics", new DubboBeanDefinitionParser(MetricsConfig.class, true));
+        registerBeanDefinitionParser("ssl", new DubboBeanDefinitionParser(SslConfig.class, true));
+        registerBeanDefinitionParser("provider", new DubboBeanDefinitionParser(ProviderConfig.class, true));
+        registerBeanDefinitionParser("consumer", new DubboBeanDefinitionParser(ConsumerConfig.class, true));
+        registerBeanDefinitionParser("protocol", new DubboBeanDefinitionParser(ProtocolConfig.class, true));
+        registerBeanDefinitionParser("service", new DubboBeanDefinitionParser(ServiceBean.class, true));
+        registerBeanDefinitionParser("reference", new DubboBeanDefinitionParser(ReferenceBean.class, false));
+        registerBeanDefinitionParser("annotation", new AnnotationBeanDefinitionParser());
+    }
+}    
+```
+
+DubboNamespaceHandler主要把不同的标签关联至U解析实现类中o registerBeanDefinitionParser方法约定了在Dubbo框架中遇到标签application> module和registry等都会委托给
+DubboBeanDefinitionParser处理。需要注意的是，在新版本中重写了注解实现，主要解决了以前实现的很多缺陷（比如无法处理AOP等）。
+
+来看下DubboBeanDefinitionParser类的parse方法核心逻辑，部分内容省略，只贴出核心逻辑：
+```
+        // 初始化 RootBeanDefinition
+        RootBeanDefinition beanDefinition = new RootBeanDefinition();
+        beanDefinition.setBeanClass(beanClass);
+        beanDefinition.setLazyInit(false);
+        // 获取beanId
+        String id = resolveAttribute(element, "id", parserContext);
+        // 如果没有beanId则将beanName设置为beanId，确保Spring容器没有重复的Bean定义
+        if (StringUtils.isEmpty(id) && required) {
+            // 一次尝试获取XML配置标签name和interface作为Bean唯一id
+            String generatedBeanName = resolveAttribute(element, "name", parserContext);
+            if (StringUtils.isEmpty(generatedBeanName)) {
+                // 如果协议标签没有指定name，则使用默认name：dubbo
+                if (ProtocolConfig.class.equals(beanClass)) {
+                    generatedBeanName = "dubbo";
+                } else {
+                    generatedBeanName = resolveAttribute(element, "interface", parserContext);
+                }
+            }
+            // 如果beanName也为空，则用beanClass作为beanId
+            if (StringUtils.isEmpty(generatedBeanName)) {
+                generatedBeanName = beanClass.getName();
+            }
+            id = generatedBeanName;
+            int counter = 2;
+            while (parserContext.getRegistry().containsBeanDefinition(id)) {
+                id = generatedBeanName + (counter++);
+            }
+        }
+        // Step3 将获取到的Bean注册到Spring
+        if (StringUtils.isNotEmpty(id)) {
+            // BeanId 出现重复则抛异常
+            if (parserContext.getRegistry().containsBeanDefinition(id)) {
+                throw new IllegalStateException("Duplicate spring bean id " + id);
+            }
+            // 将xml转换为的Bean注册到Spring的parserContext，后续属性通过adPropertyValue来增添
+            parserContext.getRegistry().registerBeanDefinition(id, beanDefinition);
+            beanDefinition.getPropertyValues().addPropertyValue("id", id);
+        }
+```
+
+小结：首先DubboBeanDefinition#Parse方法前半部分逻辑就是负责把标签解析成对应的BeanDefinition定义，并注册到Spring上下文中，同时保证了Spring容器中相同的id的Bean不会被覆盖。
+
+```
+        if (ProtocolConfig.class.equals(beanClass)) {
+            // 如果dubbo标签中配置了protocol协议，则添加protocol属性
+            for (String name : parserContext.getRegistry().getBeanDefinitionNames()) {
+                BeanDefinition definition = parserContext.getRegistry().getBeanDefinition(name);
+                PropertyValue property = definition.getPropertyValues().getPropertyValue("protocol");
+                if (property != null) {
+                    Object value = property.getValue();
+                    if (value instanceof ProtocolConfig && id.equals(((ProtocolConfig) value).getName())) {
+                        definition.getPropertyValues().addPropertyValue("protocol", new RuntimeBeanReference(id));
+                    }
+                }
+            }
+        } else if (ServiceBean.class.equals(beanClass)) {
+            // 如果<dubbo:service> 配置了class属性，那么为具体class配置的类注册Bean，并注入ref属性。
+            String className = resolveAttribute(element, "class", parserContext);
+            if (StringUtils.isNotEmpty(className)) {
+                RootBeanDefinition classDefinition = new RootBeanDefinition();
+                // 通过类反射工具获取className的实例
+                classDefinition.setBeanClass(ReflectUtils.forName(className));
+                classDefinition.setLazyInit(false);
+                // parseProperties主要是解析<dubbo:service>标签中的name、class、ref属性并通过key-value键值对取出来，放到BeanDefinition中
+                // 因此ServiceBean就会包含了用户配置的属性值
+                parseProperties(element.getChildNodes(), classDefinition, parserContext);
+                beanDefinition.getPropertyValues().addPropertyValue("ref", new BeanDefinitionHolder(classDefinition, id + "Impl"));
+            }
+        } else if (ProviderConfig.class.equals(beanClass)) {
+            parseNested(element, parserContext, ServiceBean.class, true, "service", "provider", id, beanDefinition);
+        } else if (ConsumerConfig.class.equals(beanClass)) {
+            parseNested(element, parserContext, ReferenceBean.class, false, "reference", "consumer", id, beanDefinition);
+        }
+```
+
+接下来对于<dubbo:provider>和<dubbo:consumer>标签的解析，通过了parseNested方法来处理，即解析嵌套标签。因为provider和consumer标签可能会在内部嵌套代码，即、
+即<dubbo:provider>内部可能会嵌套<dubbo:consumer>标签。,解析内部的service并生成Bean的时候，会把外层provider实例对象注入service,这种设计方式允许内部标签直接获取外部标签属性。
+
+
+那么标签的attribute是如何提取的呢？对于attribute属性，主要分为两种场景：
+- 查找配置对象的get、set和is前缀方法，如果标签属性名和方法名称相同，则通过反
+射调用存储标签对应值。
+- 如果没有和get、set和is前缀方法匹配，则当作parameters参数存储，parameters
+是一个Map对象。
+
+小结：以上两种场景的值最终都会存储到Dubbo框架的URL中，唯一区别就是get、set和is前缀方法当作普通属性存储,parameters是用Map字段存储的
+
+> 基于注解配置原理解析
+
+Dubbo重启开源后，对Dubbo的注解进行了重写，重写后解决了一下几个问题：
+
+- 注解支持不充分，需要XML配置<dubbo:annotation>
+- @ServiceBean不支持SpringAOP
+- @Reference不支持字段继承性
+
+注解处理逻辑包含3部分内容
+1. 如果用户使用了配置文件，则框架按需生成对应bean
+2. 将所有使用Dubbo的@Service的class提升为bean存入SpringIOC中
+3. 为使用@Reference注解的字段或方法注入代理对象
+
+另外，看下Dubbo注解机制
+1. @EnableDubbo激活注解
+2. 通过DubboConfigConfigurationSelector来支持配置文件读取配置
+3. 通过ServiceAnnotationBeanPostProcessor来提升@Service注解的服务为Spring bean
+4. 通过ReferenceAnnotationBeanPostProcessor来注入@Reference引用
+
+```
+@EnableDubboConfig
+@DubboComponentScan
+public @interface EnableDubbo {
+    ...
+}
+```
+
+```
+@Import(DubboConfigConfigurationRegistrar.class)
+public @interface EnableDubboConfig {
+    ...
+}
+```
+
+```
+@Import(DubboComponentScanRegistrar.class)
+public @interface DubboComponentScan {
+    ...
+}
+```
+
+1. 由于DubboConfigConfigurationRegistrar实现了ImportBeanDefinitionRegistrar，所以会实现registerBeanDefinition()方法。
+2. 在registerBeanDefinition()方法中，会注册一个DubboConfigConfiguration的一个注解，该注解中会有一个@EnableDubboConfigBindings注解
+3. 然后将EnableDubboConfigBiding注解修饰的Bean注册到Spring容器中。
+4. EnableDubboConfigBinding的作用是进行属性绑定，Dubbo会根据用户配置属性自动填充这些承载的对象。
+5. 随后，DubboConfigConfigurationRegistrar的registerBeanDefinition方法后面会继续注册各种BeanPostProcessor，包括了ReferenceAnnotationBeanPostProcessor等。
+
+> Dubbo服务注解扫描和注册
+
+在Dubbo中，通过ServiceAnnotationBeanPostProcessor来进行服务注解扫描和注册, 该类的父类ServiceClassPostProcessor实现了服务注解扫描和注册的核心逻辑。
+1. Dubbo框架首先会提取用户配置的扫描包名称，因为包名可能使用${...}占位符，因此框架会调用Spring的占位符解析做进一步解码
+2. 开始真正的注解扫描，委托Spring对所有符合包名的.class文件做字节码分析，最终通过AnnotationTypeFilte(Service.class)配置扫描@Service注解作为过滤条件
+3. 然后通过findServiceBeanDefinitionHolders来对扫描的服务创建 BeanDefinitionHolder,用于生成ServiceBean的RootBeanDefinition，用于Spring启动后的服务暴露
+
+> Dubbo消费者注入
+
+在Dubbo中，通过ReferenceAnnotationBeanPostProcessor来实现消费者注解注入，该类核心逻辑包含以下几步：
+1. 查找Bean中所有通过@Reference修饰的字段或方法
+2. 调用InjectionMetadata的inject来对字段、方法进行反射绑定
+
+因为处理器 ReferenceAnnotationBeanPostProcessor 实现了 InstantiationAwareBeanPostProcessor接口，所以在Spring的Bean中初始化前会触发postProcessPropertyValues方法，该方法允许我们做进一步处理，比如增加属性和属性值修改等。
+
+### 服务暴露
+
+不管在服务暴露还是服务消费场景下，Dubbo框架都会根据优先级对配置信息做聚合处理,目前默认覆盖策略主要遵循以下几点规则：
+1. -D 传递给 JVM 参数优先级最高，比如-Ddubbo. protocol.port=20880
+2. 代码或XML配置优先级次高，比如Spring中XML文件指定<dubbo:protocol port='20880'/>
+3. 配置文件优先级最低，比如 dubbo.properties 文件指定 dubbo.protocol.port=20880o一般推荐使用dubbo.properties作为默认值，只有XML没有配置时，dubbo.properties配置项才会生效，通常用于共享公共配置，比如应用名等
+
+#### 远程服务暴露机制
+
+在详细探讨服务暴露细节之前，我们先看一下整体RPC的暴露原理：
+1. 服务转换成Invoker
+    - ServiceConfig => ref
+    - ProxyFactory => Javassist、JDK动态代理
+    - Invoker => AbstractProxyInvoker
+2. Invoker转化成Exporter
+    - Protocol => Dubbo、injvm等
+    - Exporter
+
+在整体上看，Dubbo框架做服务暴露分为两大部分，第一步将持有的服务实例通过代理转换成Invoker,第二步会把Invoker通过具体的协议（比如Dubbo 转换成Exporter,框架做了
+这层抽象也大大方便了功能扩展。
+
+这里的Invoker可以简单理解成一个真实的服务对象实例，是Dubbo框架实体域，所有模型都会向它靠拢，可向它发起invoke调用。它可能是一个本地的实现，也可能是一个远程的实现，还可能是一个集群实现
+
+首先，RPC暴露和服务暴露有啥区别？是同一个内容吗？
+
+接下来我们深入探讨内部框架处理的细节，框架真正进行服务暴露的入口点在ServiceConfig#doExport中，无论XML还是注解，都会转换成ServiceBean,它继承自
+ServiceConfig，在服务暴露前，会按照-D、XML、Properties覆盖属性。
+
+Dubbo支持多注册中心同时写，如果配置了服务同时注册多个注册中心，则会在ServiceConfig#doExportUrls中依次暴露。
+
+```
+    private void doExportUrls() {
+        ServiceRepository repository = ApplicationModel.getServiceRepository();
+        ServiceDescriptor serviceDescriptor = repository.registerService(getInterfaceClass());
+        repository.registerProvider(
+                getUniqueServiceName(),
+                ref,
+                serviceDescriptor,
+                this,
+                serviceMetadata
+        );
+        // 加载注册中心地址
+        List<URL> registryURLs = ConfigValidationUtils.loadRegistries(this, true);
+        
+        // 获取协议配置
+        for (ProtocolConfig protocolConfig : protocols) {
+            String pathKey = URL.buildKey(getContextPath(protocolConfig)
+                    .map(p -> p + "/" + path)
+                    .orElse(path), group, version);
+            
+            repository.registerService(pathKey, interfaceClass);
+            
+            serviceMetadata.setServiceKey(pathKey);
+            // 如果服务指定暴露多个协议（Dubbo、REST），则依次暴露服务
+            doExportUrlsFor1Protocol(protocolConfig, registryURLs);
+        }
+    }
+```
+
+真实服务暴露逻辑是在doExportUrlsForlProtocol方法中实现的。
+
 
 
 
