@@ -358,13 +358,35 @@ Dubbo支持多注册中心同时写，如果配置了服务同时注册多个注
     }
 ```
 
-真实服务暴露逻辑是在doExportUrlsForlProtocol方法中实现的。
+真实服务暴露逻辑是在doExportUrlsFor1Protocol方法中实现的。
 
 
+总结下doExportUrlsFor1Protocol逻辑
+1. 通过反射获取配置信息对象如application、module、protocolCOnfig到map中，用于后序构造URL
+2. 然后根据map来新建URL对象
+3. 如果没有配置任何信息，则调用exportLocal进行本地JVM服务暴露4. 如果配置了监控地址如dubbo-admin，则服务调用信息会上报最后用服。
+5. 通过动态代理的方式创建Invoker对象，在服务端生成的是AbstractProxyInvoker实例对象，所有真实的方法调用都会委托给代理，
+然后代理转发给服务ref调用
+6. 通过动态代理转化成Invoker，registryURL存储的就是注册中心地址，然后使用export作为key追加服务元数据信息
+6. 服务暴露后向注册中心注册服务信息
+7. 如果之前判断没有注册中心，则直接暴露服务，不经过注册中心。因为这里暴露的URL信息是以具体RPC协议开头的，并不是以注册中心协议开头的
 
+下面看下有注册中心服务的暴露和无注册中心服务的暴露URL：
 
+- registry://host:port/com.alibaba.dubbo.registry.RegistryService?protocol=zookeeper&export=dubbo://ip:port/xxx?
+- dubbo://ip:host/xxx.Service?timeout=1000&
 
+protocol实例会自动根据服务暴露URL自动做适配，有注册中心场景会取出具体协议，比如zookeeper协议，首先会创建注册中心实例，然后取出export对于的具体服务URL，
+URL对应的协议(默认为Dubbo)进行服务暴露，当服务暴露成功后把服务数据注册到ZooKeeper。
 
+如果没有注册中心，则在⑦中会自动判断URL对应的协议(Dubbo)并直接暴露服务，从而没有经过注册中心。
 
+在将服务实例ref转化成Invoker之后，如果有注册中心，则会通过RegistryProtocol#export进行更细粒度的控制，比如先进行服务暴露在向注册中心进行注册服务元数据。
 
+在注册中心在做服务暴露时，会做以下几件事情：
+1. 委托具体协议(Dubbo)进行服务暴露，创建NettyServer监听端口和保存服务实例
+2. 创建注册中心对象，与注册中心创建TCP连接
+3. 注册服务元数据到注册中心
+4. 订阅configurators节点，监听服务动态属性变更事件
+5. 服务销毁收尾工作，比如关闭端口、反注册服务信息等
 
