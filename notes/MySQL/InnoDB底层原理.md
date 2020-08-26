@@ -46,7 +46,7 @@ MySQL其实就是一款软件，可以分为客户端、服务器端以及引擎
 
 具体更深入的就不去了解了。下面用一张图来展示MySQL内部组成结构。
 
-![https://github.com/coderbruis/Java-Accumulation/notes/pictures/MySQL/MySQL-Component.png](https://github.com/coderbruis/Java-Accumulation/notes/pictures/MySQL/MySQL-Component.png)
+![https://github.com/coderbruis/Java-Accumulation/blob/master/notes/pictures/MySQL/MySQL-Component.png](https://github.com/coderbruis/Java-Accumulation/blob/master/notes/pictures/MySQL/MySQL-Component.png)
 
 回到InnoDB页的简介，来看下InnoDB页结构以及原理。
 
