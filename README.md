@@ -26,10 +26,12 @@
 
 - Redis
 
+    ✅ [Redis复习总汇](https://github.com/coderbruis/Java-Accumulation/blob/master/notes/%E9%9D%A2%E8%AF%95/Redis%E5%A4%8D%E4%B9%A0.md)
+
 - Dubbo
 
     ✅ [Dubbo复习总汇](https://github.com/coderbruis/Java-Accumulation/blob/master/notes/%E9%9D%A2%E8%AF%95/Dubbo%E5%A4%8D%E4%B9%A0.md)
 
 - SpringCloud
 
-    ✅ [SpringCloud]()
+    ✅ [SpringCloud](https://github.com/coderbruis/Java-Accumulation/blob/master/notes/%E9%9D%A2%E8%AF%95/SpringCloud%E5%A4%8D%E4%B9%A0.md)
