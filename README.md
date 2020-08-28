@@ -1,6 +1,6 @@
-# Java-Accumulation
+# Java-T-Shaped
 
-互联网Java知识积累，个人心得以及反思总结。构建一套适用于自己的知识体系。
+T-Shaped指的是T型人才。而Java-T-Shaped旨在记录广而又有深度的Java以及Java相关知识，来提升Java开发人员自身的实力，为的就是在这个内卷化严重的行业能够脱颖而出拿到高薪offer，从而走向人生巅峰，赢取白富美...
 
 # 目录
 
