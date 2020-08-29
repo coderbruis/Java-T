@@ -8,30 +8,41 @@ T-Shaped指的是T型人才。而Java-T-Shaped旨在记录广而又有深度的J
 
     ✅  [Java异常](http://github.com/coderbruis/Java-Accumulation/blob/master/notes/Java%E5%9F%BA%E7%A1%80/Java%E5%BC%82%E5%B8%B8.md)
 
-- 网络
+- 计算机网络
+
+- 操作系统
 
 - MySQL
 
+    ✅ [MySQL面试题](https://github.com/coderbruis/Java-Accumulation/blob/master/notes/%E9%9D%A2%E8%AF%95/MySQL%E5%A4%8D%E4%B9%A0.md)
+    
     ✅ [InnoDB底层原理](https://github.com/coderbruis/Java-Accumulation/blob/master/notes/MySQL/InnoDB%E5%BA%95%E5%B1%82%E5%8E%9F%E7%90%86.md)
-
-    ✅ [MySQL复习总汇](https://github.com/coderbruis/Java-Accumulation/blob/master/notes/%E9%9D%A2%E8%AF%95/MySQL%E5%A4%8D%E4%B9%A0.md)
 
 - 计算机基础
 
-- Spring、SpringMVC、SpringBoot
+- Spring
+
+- SpringMVC
+
+- SpringBoot
 
 - Mybatis
+
+- SpringCloud
+
+    ✅ [SpringCloud面试题](https://github.com/coderbruis/Java-Accumulation/blob/master/notes/%E9%9D%A2%E8%AF%95/SpringCloud%E5%A4%8D%E4%B9%A0.md)
 
 - 消息队列
 
 - Redis
 
-    ✅ [Redis复习总汇](https://github.com/coderbruis/Java-Accumulation/blob/master/notes/%E9%9D%A2%E8%AF%95/Redis%E5%A4%8D%E4%B9%A0.md)
+    ✅ [Redis面试题](https://github.com/coderbruis/Java-Accumulation/blob/master/notes/%E9%9D%A2%E8%AF%95/Redis%E5%A4%8D%E4%B9%A0.md)
 
 - Dubbo
 
-    ✅ [Dubbo复习总汇](https://github.com/coderbruis/Java-Accumulation/blob/master/notes/%E9%9D%A2%E8%AF%95/Dubbo%E5%A4%8D%E4%B9%A0.md)
+    ✅ [Dubbo面试题](https://github.com/coderbruis/Java-Accumulation/blob/master/notes/%E9%9D%A2%E8%AF%95/Dubbo%E5%A4%8D%E4%B9%A0.md)
+    
+- Netty
 
-- SpringCloud
-
-    ✅ [SpringCloud](https://github.com/coderbruis/Java-Accumulation/blob/master/notes/%E9%9D%A2%E8%AF%95/SpringCloud%E5%A4%8D%E4%B9%A0.md)
+    ✅ [IO多路复用底层原理](https://github.com/coderbruis/Java-T-Shaped/blob/master/notes/Java%E8%BF%9B%E9%98%B6/IO%E5%A4%9A%E8%B7%AF%E5%A4%8D%E7%94%A8%E5%8E%9F%E7%90%86.md)
+    
