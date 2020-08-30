@@ -3,6 +3,7 @@
 - [2. InnoDB行格式](#2-innodb行格式)
 - [3. InnoDB数据页结构](#3-InnoDB数据页结构)
 - [4. B+树索引](#4-B+树索引)
+- [参考](#参考)
 
 
 <!-- /TOC -->
@@ -46,7 +47,7 @@ MySQL其实就是一款软件，可以分为客户端、服务器端以及引擎
 
 具体更深入的就不去了解了。下面用一张图来展示MySQL内部组成结构。
 
-![https://github.com/coderbruis/Java-Accumulation/blob/master/notes/pictures/MySQL/MySQL-Component.png](https://github.com/coderbruis/Java-Accumulation/blob/master/notes/pictures/MySQL/MySQL-Component.png)
+![https://github.com/coderbruis/Java-Accumulation/blob/maste/notes/pictures/MySQL/MySQL-Component.png](https://github.com/coderbruis/Java-Accumulation/blob/master/notes/pictures/MySQL/MySQL-Component.png)
 
 回到InnoDB页的简介，来看下InnoDB页结构以及原理。
 
@@ -147,9 +148,56 @@ InnoDB将以16KB大小的页来作为内存和磁盘的交互基本单位，那�
 1. 在多个数据页中确定记录所在的页
 2. 根据是主键还是非主键的条件来查找对应的记录
 
-<span style='color:red;'>
-    在没有索引的情况下，无论条件是根据主键列还是非主键列来查找数据，都需要从头开始遍历由双向链表连接的数据页，然后在进入数据页中去具体的记录（如果是主键列，则可以对通过二分法来确定记录在哪个槽范围，然后再到槽中去遍历记录组的记录），然而非主键列就更惨了，上层遍历了双向链表的数据页，下层还有继续去遍历单链表连接的记录！！！实在是苦逼！！
-</span>
+在没有索引的情况下，无论条件是根据主键列还是非主键列来查找数据，都需要从头开始遍历由双向链表连接的数据页，然后在进入数据页中去具体的记录（如果是主键列，则可以对通过二分法来确定记录在哪个槽范围，然后再到槽中去遍历记录组的记录），然而非主键列就更惨了，上层遍历了双向链表的数据页，下层还有继续去遍历单链表连接的记录！！！实在是苦逼！！
 
 可想而知，没有索引时，在数据量巨大的情况下，查找效率是多么的低下。
+
+### 4.1 InnoDB中B+树索引原理 
+ 
+> 因此在InnoDB中，提供了索引用于快速查询数据。那么在InnoDB底层中索引是如何运行的呢？什么是索引呢？
+
+在InnoDB中，会将B+树叶子节点中一个页记录链表头对应的最小主键值记录在一个目录项中，一条**目录项**包含了最小主键值以及该主键值对应的页数，而在B+树叶子节点中会存有多个数据页，并且是作为双向链表连接起来的数据页。
+
+当目录项一多，则InnoDB会为其分配一个用于存储目录项的**页**，在前面已经说到，在InnoDB中页是MySQL内存和磁盘交互的基本单位，且页分为了很多类型，而在InnoDB中通过record_type来区分页类型。
+
+- 0：普通的用户记录
+- 1：目录项记录
+- 2：最小记录
+- 3：最大记录
+
+所以用于存储数据页的页record_type类型为0，而用于存储目录项的页类型为1。这点需要大家记住！
+
+先看下图目录项和叶子节点的数据页的关系：
+ 
+![innodb_directoryPage](https://github.com/coderbruis/Java-Accumulation/blob/master/notes/pictures/MySQL/innodb_directoryPage.png)
+
+而将多个目录项存放在一个页中时，B+树结构如下图所示：
+
+![innodb_directoryPage](https://github.com/coderbruis/Java-Accumulation/blob/master/notes/pictures/MySQL/innodb_directoryPage02.png)
+
+并且，如果存放由目录项记录的页也变得过多时，可以再为存有目录项的页们建一个**目录**, 这个目录其实和目录项一样存放由两个关键数据：
+
+- 存放着目录项页中最小的主键值
+- 对应的目录项页的页数
+
+说起来有点抽象，看下下图就能理解了：
+
+![innodb_directoryPage](https://github.com/coderbruis/Java-Accumulation/blob/master/notes/pictures/MySQL/innodb_directoryPage03.png)
+
+> 小结：就是这样，在B+树叶子节点中存放着众多的数据页，而叶子节点中数据页与数据页之间是通过双向链表来连通的。数据页中的用户真实记录之间是通过单链表来关联起来的。
+> InnoDB为了加快数据查询而建立了一个存储目录项的页，而又继续为存储目录项的页建立了又一个目录项页，依次建立起了InnoDB的索引机制！而B+树就是这样一个层数低，但又节点以及叶子节点
+> 众多的一棵树。
+
+### 4.2 聚镞索引
+
+
+
+## 参考
+
+- [MySQL是怎样运行的：从根儿上理解 MySQL](https://juejin.im/book/6844733769996304392/section/6844733770046636046)
+
+
+
+
+
 
