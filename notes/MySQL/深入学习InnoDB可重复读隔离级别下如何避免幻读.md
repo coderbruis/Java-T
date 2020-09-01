@@ -87,24 +87,24 @@
 行锁就是Record Lock，就是对单个行记录加的锁。X锁和S锁就是行锁。
 
 ### 3.2 Gap锁
-Gap就是索引树种，插入新数据的间隙。间隙锁即锁定一个记录的范围，但是不锁定记录本身。间隙锁是为了避免同一事务的两次当前读出现幻读的情况。需要注意的是，Gap锁在RU、RC隔离级别下时不存在的，在RR、Serializable隔离级别下都只支持Gap锁。这就是为什么RU、RC隔离级别下无法避免幻读，RR、Serializable能够避免幻读的原因。
+Gap就是索引树中，插入新数据的间隙。间隙锁即锁定一个记录的范围，但是不锁定记录本身。间隙锁是为了避免同一事务的两次当前读出现幻读的情况。需要注意的是，Gap锁在RU、RC隔离级别下时不存在的，在RR、Serializable隔离级别下都只支持Gap锁。这就是为什么RU、RC隔离级别下无法避免幻读，RR、Serializable能够避免幻读的原因。
 
 下面讨论的都是在RR隔离级别下出现Gap锁的场景。
 
  1. 在RR隔离级别下，无论删、改、查，当前读若用到主键索引或者唯一键索引，会使用Gap锁吗？
 答：如果where条件全部命中，则不会用Gap锁，只会加记录锁。
 
-怎么去理解where条件全部命中，不用加Gap锁只需要加记录锁就行了呢？这是因为比如A事务需要修改操作所有记录，此时B事务使用主键索引id来进行where条件查询来进行删除操作，此时只需要锁住where命中的id记录即可，那么就能防止事务A出现幻读现象。
+怎么去理解where条件全部命中，不用加Gap锁只需要加记录锁就行了呢？这是因为比如A事务需要修改操作所有记录，此时B事务使用主键索引id进行where条件查询、删除操作，此时只需要锁住where命中的id记录即可，那么就能防止事务A出现幻读现象。
 ![在这里插入图片描述](https://img-blog.csdnimg.cn/20191025114311395.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L0NvZGVyQnJ1aXM=,size_16,color_FFFFFF,t_70)
 
-如图，tb中name为主键索引，id为唯一索引。某个事务使用delete from tb where id = 9进行删除操作，首先where条件全部命中，所以先会为id为9的这个记录的唯一索引加上行锁，然后会为name为d的主键索引（聚镞索引）加上排他锁。这是为了防止其他事务对where name = 9进行操作，导致数据不一致的情况。
+如图，tb中name为主键索引，id为唯一索引。某个事务使用delete from tb where id = 9进行删除操作，首先where条件全部命中，所以先会为id为9的这个记录的唯一索引加上行锁，然后会为name为d的主键索引（聚镞索引）加上排他锁。这是为了防止其他事务对where name = d进行操作，导致数据不一致的情况。
 
 2.	在RR隔离级别下，无论删、改、查，当前读若用到主键索引或者唯一键索引，且如果where条件部分命中或者全不命中，则会加Gap锁。对于这种情况，就包含了范围查询以及精确查询非全部命中的情况。
 例子1：比如现在事务A要删除一条不存在的id为7的记录，此时事务B要新增一条id为8的记录，会发现事务B一直处于等待中，这是因为精准查询全部都不命中，会对该记录范围加Gap锁。
 
 	例子2：【tb_student中存在id为5,6,9的学生】比如在事务A中使用语句select * from tb_student where id in (5,7,9) lock in share mode;使用当前读（共享锁）来查询学生信息。在另外一个事务B中去进行新增id为6,7,8的学生，发现事务一直在等待中。这里是因为where id in (5,7,9)部分命中，所以会为(5,9]加Gap锁，锁的范围为左开右闭。因此事务B新增id为7,8的记录会被Gap锁锁住，这就是精准查询不全部命中的情况。
 
-3. Gao锁会用在非唯一索引或者不走索引的当前读中
+3. Gap锁会用在非唯一索引或者不走索引的当前读中
 	**非唯一索引**
 ![在这里插入图片描述](https://img-blog.csdnimg.cn/20191025114422831.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L0NvZGVyQnJ1aXM=,size_16,color_FFFFFF,t_70)
 
