@@ -86,4 +86,43 @@ Spring框架中的单例bean不是线程安全的。
 
 可以的
 
-## 8. 
+## 8. Spring是如何解决循环依赖的？
+
+在Spring中，单例Bean是会出现循环依赖问题，而原型（Prototype）是不支持循环依赖的。
+
+那么在单例Bean场景中，Spring是如何解决循环依赖的？
+
+在Spring中是通过内部维护的三个Map，也就是晚上通常说的"三级缓存"（虽然官方文档中是没有这种说法的）
+在Spring中的DefaultSingletonBeanRegistry类中，会包含了三个Map：
+
+- singletonObjects
+    
+    俗称的"单例池""容器"，缓存创建完成生成bean的地方
+        
+- singletonFactories
+
+    映射创建Bean的原始工厂
+
+- earlySingletonObjects
+
+    早期的Bean，在这个Map中存的不是bean，而是instance实例
+    
+对于singletonFactories和earlySingletonObjects是用来赋值创建bean的，创建bean完成之后就清理掉各自map中的元素。
+
+在深入源码步骤之前，需要提前知道一点就是，Spring创建一个bean是需要经过两步：
+1. bean对象的实例
+2. bean对象属性的实例
+
+整个过程需要涉及到下面四步方法的依次调用： 
+1. getSingleton
+2. doCreateBean
+3. populateBean
+4. addSingleton
+
+例如A类中依赖了B，B类中依赖了A。
+
+首先A调用getSingleton()，当来到doCreateBean()时，会设置属性earlySingletonExpose为true，然后将A的bean工厂添加到singletonFactories中，然后调用populateBean()时发现A中依赖了B，则又会
+调用B类的getSingleton()，同样的调用doCreateBean()时会设置earlySingletonExpose为true，然后将B的bean工厂添加到singletonFactories中，然后调用populateBean()进行属性填充，此时发现B类中依赖
+了A类，所以又回去调用A类的getSingleton()，此时发现在isSingletonCurrentlyInCreation结合中包含了A类，表示A类正在被创建，所以回去earlySingletonObjects中获取"半成品A"，然后删除singletonFactories中的
+A的bean工厂。当B拿到半成品"A"时，则从populateBean()返回，最后调用addSingleton()添加到singletonObjects中完成B的bean创建。而A方法也会从populateBean()中返回，拿到了B，则然后调用addSingleton()方法，将
+bean添加到singletonObjects。
