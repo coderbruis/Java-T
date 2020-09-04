@@ -22,6 +22,9 @@ T-Shaped指的是T型人才。而Java-T-Shaped旨在记录广而又有深度的J
 
 - 计算机基础
 
+    ✅ [计算机网络面试题](https://github.com/coderbruis/Java-T-Shaped/blob/master/notes/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C%E9%9D%A2%E8%AF%95%E9%A2%98.md)
+    ✅ [HTTP和HTTPS的深入分析](https://github.com/coderbruis/Java-T-Shaped/blob/master/notes/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/HTTP%E5%92%8CHTTPS%E7%9A%84%E6%B7%B1%E5%85%A5%E5%88%86%E6%9E%90.md)
+
 - Spring
 
     ✅ [Spring面试题](https://github.com/coderbruis/Java-T-Shaped/blob/master/notes/%E6%A1%86%E6%9E%B6/Spring%E9%9D%A2%E8%AF%95.md)
